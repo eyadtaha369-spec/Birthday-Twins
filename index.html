@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lily & Layla — Birthday Celebration</title>
+<meta name="description" content="You're invited: Lily & Layla's birthday celebration, September 13, 2026." />
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Tailwind -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          obsidian: '#0A0910',
+          panel: '#161320',
+          rose: {
+            DEFAULT: '#C89B6C',
+            light: '#E8C9A0',
+            dim: '#8B7057',
+          },
+          champagne: '#EFE3C8',
+          ivory: '#F5EFE6',
+          muted: '#A99885',
+          wine: '#2C1420',
+        },
+        fontFamily: {
+          display: ['"Cormorant Garamond"', 'serif'],
+          body: ['"Manrope"', 'sans-serif'],
+        },
+      },
+    },
+  }
+</script>
+
+<!-- React + Babel -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<!-- Confetti -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+<style>
+  html { scroll-behavior: smooth; }
+  body {
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(200,155,108,0.10), transparent 60%),
+      radial-gradient(900px 500px at 100% 10%, rgba(44,20,32,0.55), transparent 55%),
+      #0A0910;
+    font-family: 'Manrope', sans-serif;
+    color: #F5EFE6;
+  }
+  .font-display { font-family: 'Cormorant Garamond', serif; }
+
+  /* subtle ambient sparkle particles */
+  .sparkle-field { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .sparkle {
+    position: absolute;
+    width: 3px; height: 3px;
+    background: radial-gradient(circle, #E8C9A0 0%, rgba(232,201,160,0) 70%);
+    border-radius: 999px;
+    animation: drift linear infinite;
+    opacity: 0.6;
+  }
+  @keyframes drift {
+    0%   { transform: translateY(0) translateX(0); opacity: 0; }
+    10%  { opacity: 0.8; }
+    90%  { opacity: 0.5; }
+    100% { transform: translateY(-120vh) translateX(20px); opacity: 0; }
+  }
+
+  .glass {
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015));
+    border: 1px solid rgba(232,201,160,0.16);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .hairline { border-color: rgba(200,155,108,0.22); }
+
+  .gold-text {
+    background: linear-gradient(115deg, #8B7057 10%, #E8C9A0 40%, #C89B6C 60%, #8B7057 90%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .btn-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-shimmer::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -150%;
+    width: 60%; height: 100%;
+    background: linear-gradient(115deg, transparent, rgba(255,255,255,0.35), transparent);
+    transform: skewX(-20deg);
+    transition: left 0.9s ease;
+  }
+  .btn-shimmer:hover::after { left: 150%; }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+  .reveal.in { opacity: 1; transform: translateY(0); }
+
+  .flip-card { perspective: 1200px; }
+  .flip-inner {
+    position: relative;
+    transition: transform 0.7s cubic-bezier(.4,.2,.2,1);
+    transform-style: preserve-3d;
+  }
+  .flip-card.flipped .flip-inner { transform: rotateY(180deg); }
+  .flip-face {
+    position: absolute; inset: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+  .flip-back { transform: rotateY(180deg); }
+
+  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar-track { background: #0A0910; }
+  ::-webkit-scrollbar-thumb { background: #3A2E23; border-radius: 8px; }
+
+  input::placeholder, textarea::placeholder { color: #6E6153; }
+
+  .tag-pill {
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+  .tag-pill:hover { transform: translateY(-2px); }
+
+  .portrait-frame {
+    transition: filter 0.5s ease, transform 0.6s ease;
+  }
+  .portrait-frame:hover {
+    filter: brightness(1.08) saturate(1.1);
+    transform: translateY(-4px);
+  }
+</style>
+</head>
+<body class="antialiased overflow-x-hidden">
+
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useCallback } = React;
+
+/* ---------------------------------------------------------
+   Ambient sparkle background (lightweight, CSS-driven)
+--------------------------------------------------------- */
+function SparkleField({ count = 26 }) {
+  const sparkles = React.useMemo(() => {
+    return Array.from({ length: count }).map((_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      size: 2 + Math.random() * 3,
+      duration: 9 + Math.random() * 10,
+      delay: Math.random() * 10,
+    }));
+  }, [count]);
+
+  return (
+    <div className="sparkle-field">
+      {sparkles.map(s => (
+        <span
+          key={s.id}
+          className="sparkle"
+          style={{
+            left: `${s.left}%`,
+            bottom: '-10px',
+            width: s.size, height: s.size,
+            animationDuration: `${s.duration}s`,
+            animationDelay: `${s.delay}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
+   Scroll reveal wrapper
+--------------------------------------------------------- */
+function Reveal({ children, className = "", delay = 0 }) {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setInView(true); obs.disconnect(); } },
+      { threshold: 0.15 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} className={`reveal ${inView ? 'in' : ''} ${className}`} style={{ transitionDelay: `${delay}ms` }}>
+      {children}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
+   Nav
+--------------------------------------------------------- */
+function NavBar() {
+  const links = [
+    ["Home", "#hero"], ["The Bash", "#celebration"], ["Chronicles", "#gallery"],
+    ["Who's Who", "#trivia"], ["Wishbook", "#wishbook"],
+  ];
+  return (
+    <nav className="fixed top-0 inset-x-0 z-40 flex items-center justify-between px-6 md:px-12 py-4 backdrop-blur-md bg-obsidian/40 border-b hairline">
+      <span className="font-display italic text-xl tracking-wide gold-text">L&L</span>
+      <div className="hidden md:flex gap-8 text-sm text-muted">
+        {links.map(([label, href]) => (
+          <a key={href} href={href} className="hover:text-champagne transition-colors">{label}</a>
+        ))}
+      </div>
+      <a href="#celebration" className="text-xs uppercase tracking-widest border hairline rounded-full px-4 py-2 text-champagne hover:bg-rose/10 transition-colors">RSVP</a>
+    </nav>
+  );
+}
+
+/* ---------------------------------------------------------
+   Hero
+--------------------------------------------------------- */
+function Hero({ onCelebrate }) {
+  return (
+    <section id="hero" className="relative min-h-screen flex flex-col justify-center pt-24 pb-16 px-6 md:px-12">
+      <SparkleField />
+      <div className="relative max-w-6xl mx-auto w-full">
+        <Reveal>
+          <p className="text-center text-xs md:text-sm tracking-[0.35em] text-rose-light/80 mb-6">SUNDAY · SEPTEMBER 13 · 2026</p>
+        </Reveal>
+
+        <Reveal delay={100}>
+          <h1 className="font-display text-center text-6xl sm:text-7xl md:text-8xl lg:text-9xl leading-[0.95] gold-text tracking-tight">
+            Lily <span className="italic">&</span> Layla
+          </h1>
+        </Reveal>
+
+        <Reveal delay={220}>
+          <p className="text-center font-display italic text-xl md:text-2xl text-champagne/90 mt-6 max-w-xl mx-auto">
+            Double the glam. Double the magic. Celebrating the ultimate duo.
+          </p>
+        </Reveal>
+
+        <div className="grid grid-cols-2 gap-4 md:gap-8 max-w-2xl mx-auto mt-14">
+          <Reveal delay={320}>
+            <div className="portrait-frame relative aspect-[3/4] rounded-t-full overflow-hidden border hairline"
+                 style={{ background: 'linear-gradient(160deg, #2C1420 0%, #17131f 55%, #0A0910 100%)' }}>
+              <div className="absolute inset-0 flex items-end justify-center pb-6">
+                <span className="font-display italic text-3xl text-rose-light/90">Lily</span>
+              </div>
+              <div className="absolute inset-0" style={{ boxShadow: 'inset 0 0 60px rgba(0,0,0,0.5)' }} />
+            </div>
+          </Reveal>
+          <Reveal delay={420}>
+            <div className="portrait-frame relative aspect-[3/4] rounded-t-full overflow-hidden border hairline"
+                 style={{ background: 'linear-gradient(200deg, #3a2416 0%, #17131f 55%, #0A0910 100%)' }}>
+              <div className="absolute inset-0 flex items-end justify-center pb-6">
+                <span className="font-display italic text-3xl text-rose-light/90">Layla</span>
+              </div>
+              <div className="absolute inset-0" style={{ boxShadow: 'inset 0 0 60px rgba(0,0,0,0.5)' }} />
+            </div>
+          </Reveal>
+        </div>
+
+        <Reveal delay={520} className="flex justify-center mt-14">
+          <button
+            onClick={onCelebrate}
+            className="btn-shimmer font-body text-sm md:text-base tracking-wide uppercase px-8 py-4 rounded-full text-obsidian font-semibold"
+            style={{ background: 'linear-gradient(120deg, #8B7057, #E8C9A0, #C89B6C)' }}
+          >
+            🎉 Celebrate Lily & Layla
+          </button>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+/* ---------------------------------------------------------
+   Countdown
+--------------------------------------------------------- */
+function useCountdown(targetDate) {
+  const [timeLeft, setTimeLeft] = useState(() => targetDate - new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setTimeLeft(targetDate - new Date()), 1000);
+    return () => clearInterval(id);
+  }, [targetDate]);
+
+  const clamped = Math.max(timeLeft, 0);
+  const days = Math.floor(clamped / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((clamped / (1000 * 60 * 60)) % 24);
+  const minutes = Math.floor((clamped / (1000 * 60)) % 60);
+  const seconds = Math.floor((clamped / 1000) % 60);
+  return { days, hours, minutes, seconds, done: clamped <= 0 };
+}
+
+function CountdownUnit({ value, label }) {
+  return (
+    <div className="flex flex-col items-center min-w-[64px] md:min-w-[84px]">
+      <span className="font-display text-4xl md:text-6xl gold-text tabular-nums">{String(value).padStart(2, '0')}</span>
+      <span className="text-[10px] md:text-xs tracking-[0.25em] text-muted mt-2 uppercase">{label}</span>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
+   VIP Event Pass + Celebration Hub
+--------------------------------------------------------- */
+function CelebrationHub({ onRsvpOpen }) {
+  const target = React.useMemo(() => new Date('2026-09-13T18:00:00'), []);
+  const { days, hours, minutes, seconds, done } = useCountdown(target);
+
+  return (
+    <section id="celebration" className="relative py-28 px-6 md:px-12 border-t hairline">
+      <div className="max-w-5xl mx-auto">
+        <Reveal>
+          <p className="text-center text-xs tracking-[0.35em] text-rose-light/70 mb-3">THE COUNTDOWN IS ON</p>
+        </Reveal>
+        <Reveal delay={80}>
+          <h2 className="font-display text-center text-4xl md:text-5xl mb-14">
+            {done ? "It's Party Time" : "Until The Big Bash"}
+          </h2>
+        </Reveal>
+
+        <Reveal delay={140}>
+          <div className="flex justify-center gap-4 md:gap-10 mb-20">
+            <CountdownUnit value={days} label="Days" />
+            <CountdownUnit value={hours} label="Hours" />
+            <CountdownUnit value={minutes} label="Minutes" />
+            <CountdownUnit value={seconds} label="Seconds" />
+          </div>
+        </Reveal>
+
+        <Reveal delay={200}>
+          <div className="glass rounded-2xl p-8 md:p-12 grid md:grid-cols-2 gap-10">
+            <div>
+              <p className="text-xs tracking-[0.3em] text-rose-light/70 mb-4">VIP EVENT PASS</p>
+              <h3 className="font-display italic text-3xl mb-6">Lily & Layla's Birthday Bash</h3>
+              <dl className="space-y-4 text-sm">
+                <div className="flex justify-between border-b hairline pb-3">
+                  <dt className="text-muted">Date</dt>
+                  <dd>Sunday, September 13, 2026</dd>
+                </div>
+                <div className="flex justify-between border-b hairline pb-3">
+                  <dt className="text-muted">Venue</dt>
+                  <dd>Our Home 🏡</dd>
+                </div>
+                <div className="flex justify-between pb-1">
+                  <dt className="text-muted">Dress Code</dt>
+                  <dd>Chic & Glamorous</dd>
+                </div>
+              </dl>
+            </div>
+            <div className="flex flex-col justify-center gap-4">
+              <a
+                href="https://maps.google.com"
+                target="_blank" rel="noreferrer"
+                className="text-center border hairline rounded-full py-3 text-sm text-champagne hover:bg-rose/10 transition-colors"
+              >
+                Get Directions
+              </a>
+              <button
+                onClick={onRsvpOpen}
+                className="btn-shimmer text-center rounded-full py-3 text-sm font-semibold text-obsidian"
+                style={{ background: 'linear-gradient(120deg, #8B7057, #E8C9A0, #C89B6C)' }}
+              >
+                RSVP Now
+              </button>
+            </div>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+function RsvpModal({ open, onClose }) {
+  const [submitted, setSubmitted] = useState(false);
+  const [name, setName] = useState('');
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/70 backdrop-blur-sm" onClick={onClose}>
+      <div className="glass rounded-2xl max-w-md w-full p-8" onClick={e => e.stopPropagation()}>
+        {!submitted ? (
+          <React.Fragment>
+            <h3 className="font-display italic text-2xl mb-1">You're Invited</h3>
+            <p className="text-sm text-muted mb-6">Let Lily & Layla know you're coming.</p>
+            <form onSubmit={(e) => { e.preventDefault(); setSubmitted(true); }} className="space-y-4">
+              <input
+                required value={name} onChange={e => setName(e.target.value)}
+                placeholder="Your full name"
+                className="w-full bg-transparent border hairline rounded-lg px-4 py-3 text-sm outline-none focus:border-rose"
+              />
+              <select required className="w-full bg-[#17131f] border hairline rounded-lg px-4 py-3 text-sm outline-none focus:border-rose">
+                <option value="">Will you attend?</option>
+                <option value="yes">Yes, I'll be there!</option>
+                <option value="maybe">Maybe</option>
+                <option value="no">Can't make it</option>
+              </select>
+              <input
+                placeholder="Guests joining you (optional)"
+                className="w-full bg-transparent border hairline rounded-lg px-4 py-3 text-sm outline-none focus:border-rose"
+              />
+              <button type="submit"
+                className="btn-shimmer w-full rounded-full py-3 text-sm font-semibold text-obsidian"
+                style={{ background: 'linear-gradient(120deg, #8B7057, #E8C9A0, #C89B6C)' }}>
+                Confirm RSVP
+              </button>
+            </form>
+          </React.Fragment>
+        ) : (
+          <div className="text-center py-6">
+            <p className="text-3xl mb-4">🥂</p>
+            <h3 className="font-display italic text-2xl mb-2">Thank You, {name || 'Guest'}!</h3>
+            <p className="text-sm text-muted mb-6">Your spot at the celebration is confirmed.</p>
+            <button onClick={onClose} className="text-sm border hairline rounded-full px-6 py-2 hover:bg-rose/10">Close</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
+   The Twin Chronicles — filterable gallery + lightbox
+--------------------------------------------------------- */
+const GALLERY_ITEMS = [
+  { id: 1, cat: 'Iconic Moments', title: 'The First Birthday', caption: 'Two candles, double the chaos.', tone: 'linear-gradient(150deg,#2C1420,#3A2416)' },
+  { id: 2, cat: 'Party Era', title: 'Sweet Sixteen', caption: 'The night the playlist never stopped.', tone: 'linear-gradient(150deg,#3A2416,#17131f)' },
+  { id: 3, cat: 'Travel & Chaos', title: 'Lost in Rome', caption: 'Wrong turn, right memories.', tone: 'linear-gradient(150deg,#17131f,#2C1420)' },
+  { id: 4, cat: 'Iconic Moments', title: 'Matching Outfits', caption: 'Coordinated since birth.', tone: 'linear-gradient(150deg,#2C1420,#0A0910)' },
+  { id: 5, cat: 'Party Era', title: 'Graduation Glow-Up', caption: 'Caps off, glasses up.', tone: 'linear-gradient(150deg,#3A2416,#2C1420)' },
+  { id: 6, cat: 'Travel & Chaos', title: 'The Airport Incident', caption: 'One passport short, zero regrets.', tone: 'linear-gradient(150deg,#17131f,#3A2416)' },
+];
+
+function Gallery() {
+  const [filter, setFilter] = useState('All');
+  const [active, setActive] = useState(null);
+  const filters = ['All', 'Iconic Moments', 'Party Era', 'Travel & Chaos'];
+  const items = filter === 'All' ? GALLERY_ITEMS : GALLERY_ITEMS.filter(i => i.cat === filter);
+
+  return (
+    <section id="gallery" className="relative py-28 px-6 md:px-12 border-t hairline">
+      <div className="max-w-6xl mx-auto">
+        <Reveal>
+          <p className="text-center text-xs tracking-[0.35em] text-rose-light/70 mb-3">A LOOK BACK</p>
+        </Reveal>
+        <Reveal delay={80}>
+          <h2 className="font-display text-center text-4xl md:text-5xl mb-10">The Twin Chronicles</h2>
+        </Reveal>
+
+        <Reveal delay={140} className="flex flex-wrap justify-center gap-3 mb-12">
+          {filters.map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              className={`text-xs md:text-sm tracking-wide px-5 py-2 rounded-full border hairline transition-colors ${filter === f ? 'bg-rose/20 text-champagne' : 'text-muted hover:text-champagne'}`}>
+              {f}
+            </button>
+          ))}
+        </Reveal>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {items.map((item, idx) => (
+            <Reveal key={item.id} delay={idx * 60}>
+              <button
+                onClick={() => setActive(item)}
+                className="group relative w-full aspect-[4/5] rounded-xl overflow-hidden border hairline text-left"
+                style={{ background: item.tone }}
+              >
+                <div className="absolute inset-0 flex flex-col justify-end p-5 bg-gradient-to-t from-black/70 via-black/10 to-transparent group-hover:from-black/85 transition-all">
+                  <p className="text-[10px] tracking-[0.2em] text-rose-light/80 mb-1 uppercase">{item.cat}</p>
+                  <p className="font-display italic text-xl">{item.title}</p>
+                </div>
+              </button>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+
+      {active && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm" onClick={() => setActive(null)}>
+          <div className="glass rounded-2xl max-w-lg w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="aspect-video" style={{ background: active.tone }} />
+            <div className="p-6">
+              <p className="text-[10px] tracking-[0.2em] text-rose-light/80 mb-1 uppercase">{active.cat}</p>
+              <h4 className="font-display italic text-2xl mb-2">{active.title}</h4>
+              <p className="text-sm text-muted mb-4">{active.caption}</p>
+              <button onClick={() => setActive(null)} className="text-sm border hairline rounded-full px-5 py-2 hover:bg-rose/10">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ---------------------------------------------------------
+   Who's Who — flip trivia cards
+--------------------------------------------------------- */
+const TRIVIA = [
+  { front: "Who was born first?", back: "Lily — by exactly 7 minutes. She's never let Layla forget it." },
+  { front: "The Party Starter vs. The Vibe Master", back: "Layla picks the playlist and gets everyone dancing. Lily makes sure the night actually happens on time." },
+  { front: "Shared Laughs & Unbreakable Bond", back: "They've finished each other's sentences since they could talk — and started half their group chats the same way." },
+];
+
+function FlipCard({ front, back }) {
+  const [flipped, setFlipped] = useState(false);
+  return (
+    <div className={`flip-card ${flipped ? 'flipped' : ''} h-56`} onClick={() => setFlipped(f => !f)}>
+      <div className="flip-inner h-full w-full cursor-pointer">
+        <div className="flip-face glass rounded-2xl p-6 flex items-center justify-center text-center">
+          <p className="font-display italic text-xl">{front}</p>
+        </div>
+        <div className="flip-face flip-back rounded-2xl p-6 flex items-center justify-center text-center"
+             style={{ background: 'linear-gradient(140deg,#3A2416,#2C1420)' }}>
+          <p className="text-sm text-champagne/90">{back}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TriviaSection() {
+  return (
+    <section id="trivia" className="relative py-28 px-6 md:px-12 border-t hairline">
+      <div className="max-w-5xl mx-auto">
+        <Reveal>
+          <p className="text-center text-xs tracking-[0.35em] text-rose-light/70 mb-3">GET TO KNOW THEM</p>
+        </Reveal>
+        <Reveal delay={80}>
+          <h2 className="font-display text-center text-4xl md:text-5xl mb-4">Who's Who?</h2>
+        </Reveal>
+        <Reveal delay={140}>
+          <p className="text-center text-sm text-muted mb-14">Tap a card to reveal.</p>
+        </Reveal>
+        <div className="grid md:grid-cols-3 gap-6">
+          {TRIVIA.map((t, i) => (
+            <Reveal key={i} delay={i * 100}>
+              <FlipCard front={t.front} back={t.back} />
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------------------------------------------------------
+   Guest Wishbook
+--------------------------------------------------------- */
+const TAGS = ['#TwinSensation', '#LilyAndLayla', '#BirthdayQueens'];
+
+function Wishbook() {
+  const [name, setName] = useState('');
+  const [message, setMessage] = useState('');
+  const [wishes, setWishes] = useState([
+    { id: 0, name: 'Mom & Dad', message: 'Watching you two grow into who you are has been our greatest joy. #LilyAndLayla' },
+  ]);
+
+  const addTag = (tag) => setMessage(m => (m ? `${m} ${tag}` : tag));
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!name.trim() || !message.trim()) return;
+    setWishes(w => [{ id: Date.now(), name, message }, ...w]);
+    setName(''); setMessage('');
+  };
+
+  return (
+    <section id="wishbook" className="relative py-28 px-6 md:px-12 border-t hairline">
+      <div className="max-w-3xl mx-auto">
+        <Reveal>
+          <p className="text-center text-xs tracking-[0.35em] text-rose-light/70 mb-3">LEAVE YOUR MARK</p>
+        </Reveal>
+        <Reveal delay={80}>
+          <h2 className="font-display text-center text-4xl md:text-5xl mb-14">Guest Wishbook</h2>
+        </Reveal>
+
+        <Reveal delay={140}>
+          <form onSubmit={submit} className="glass rounded-2xl p-6 md:p-8 space-y-4 mb-12">
+            <input
+              value={name} onChange={e => setName(e.target.value)}
+              placeholder="Your name"
+              className="w-full bg-transparent border hairline rounded-lg px-4 py-3 text-sm outline-none focus:border-rose"
+            />
+            <textarea
+              value={message} onChange={e => setMessage(e.target.value)}
+              placeholder="Write a birthday message for Lily & Layla..."
+              rows={3}
+              className="w-full bg-transparent border hairline rounded-lg px-4 py-3 text-sm outline-none focus:border-rose resize-none"
+            />
+            <div className="flex flex-wrap gap-2">
+              {TAGS.map(tag => (
+                <button type="button" key={tag} onClick={() => addTag(tag)}
+                  className="tag-pill text-xs px-3 py-1.5 rounded-full border hairline text-rose-light/90 hover:bg-rose/10">
+                  {tag}
+                </button>
+              ))}
+            </div>
+            <button type="submit"
+              className="btn-shimmer w-full rounded-full py-3 text-sm font-semibold text-obsidian"
+              style={{ background: 'linear-gradient(120deg, #8B7057, #E8C9A0, #C89B6C)' }}>
+              Post Wish
+            </button>
+          </form>
+        </Reveal>
+
+        <div className="space-y-4">
+          {wishes.map((w, i) => (
+            <Reveal key={w.id} delay={i * 60}>
+              <div className="rounded-xl p-5 border hairline"
+                   style={{ background: 'linear-gradient(120deg, rgba(139,112,87,0.12), rgba(44,20,32,0.25))' }}>
+                <p className="text-sm text-champagne/95 mb-2">{w.message}</p>
+                <p className="text-xs text-muted">— {w.name}</p>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------------------------------------------------------
+   Floating audio widget
+--------------------------------------------------------- */
+function AudioWidget() {
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef(null);
+
+  const toggle = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (playing) { audio.pause(); } else { audio.play().catch(() => {}); }
+    setPlaying(p => !p);
+  };
+
+  return (
+    <div className="fixed bottom-6 right-6 z-40 flex items-center gap-3 glass rounded-full pl-4 pr-2 py-2">
+      {/* Replace the src below with your own celebratory track */}
+      <audio ref={audioRef} loop src="" />
+      <span className="text-xs text-muted hidden sm:inline">Party Soundtrack</span>
+      <button
+        onClick={toggle}
+        aria-label={playing ? 'Pause music' : 'Play music'}
+        className="w-10 h-10 rounded-full flex items-center justify-center text-obsidian"
+        style={{ background: 'linear-gradient(120deg, #8B7057, #E8C9A0, #C89B6C)' }}
+      >
+        {playing ? (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8V4z" /></svg>
+        )}
+      </button>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------
+   Footer
+--------------------------------------------------------- */
+function Footer() {
+  return (
+    <footer className="relative py-14 px-6 text-center border-t hairline">
+      <p className="font-display italic text-2xl gold-text mb-2">Lily & Layla</p>
+      <p className="text-xs text-muted tracking-widest">SEPTEMBER 13, 2026 · OUR HOME</p>
+    </footer>
+  );
+}
+
+/* ---------------------------------------------------------
+   App
+--------------------------------------------------------- */
+function App() {
+  const [rsvpOpen, setRsvpOpen] = useState(false);
+
+  const celebrate = useCallback(() => {
+    const duration = 2500;
+    const end = Date.now() + duration;
+    const colors = ['#C89B6C', '#E8C9A0', '#F5EFE6', '#8B7057'];
+    (function frame() {
+      confetti({ particleCount: 4, angle: 60, spread: 65, origin: { x: 0 }, colors });
+      confetti({ particleCount: 4, angle: 120, spread: 65, origin: { x: 1 }, colors });
+      if (Date.now() < end) requestAnimationFrame(frame);
+    })();
+    confetti({ particleCount: 140, spread: 100, origin: { y: 0.4 }, colors, startVelocity: 45 });
+  }, []);
+
+  return (
+    <React.Fragment>
+      <NavBar />
+      <Hero onCelebrate={celebrate} />
+      <CelebrationHub onRsvpOpen={() => setRsvpOpen(true)} />
+      <Gallery />
+      <TriviaSection />
+      <Wishbook />
+      <Footer />
+      <AudioWidget />
+      <RsvpModal open={rsvpOpen} onClose={() => setRsvpOpen(false)} />
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
